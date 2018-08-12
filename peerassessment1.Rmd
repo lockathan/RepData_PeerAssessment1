@@ -1,0 +1,118 @@
+---
+title: "Reproducible Research - Peer Assessment 1"
+author: "Jonathan Locke"
+date: "11 August 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Reproducible Research - Peer Assessment 1
+
+## Loading and Preprocessing Data
+
+In this step, we extract activity.csv from activity.zip and load it into memory. No further processing is necessary at this time.
+```{r, echo=TRUE}
+unzip("activity.zip")
+activity = read.csv("activity.csv")
+
+```
+
+## Total Number of Steps Taken Per Day
+
+In order to calculate the total number of steps taken per day, we use R's aggregate function. This function performs a function of our choice - in this case sum - on data that is grouped by the parameter specified, in this case date. The result is the total number of steps taken per day for each of the days for which data is available.
+
+```{r, echo=TRUE}
+totalStepsPerDay <- aggregate(steps ~ date, activity, FUN = sum)
+```
+
+
+### Histogram of Steps Taken Per Day
+
+```{r histogram, echo=TRUE}
+
+hist(totalStepsPerDay$steps, main = "Histogram of Step Distribution (NAs removed)", xlab = "Step Count", col = "green")
+```
+
+We calculate the mean and median number of steps taken per day using the total steps per day calculated above as well as R's built in mean and median functions.
+
+```{r mean, echo=TRUE}
+meanSteps <- mean(totalStepsPerDay$steps)
+medianSteps <- median(totalStepsPerDay$steps)
+```
+
+Thus, the mean steps per day is `r meanSteps` and the median steps per day is `r medianSteps`.
+## Average Daily Activity Pattern
+
+Before creating a line chart of the average number of steps for each interval, we use the same aggregate function. This time however, we use the aggregate function to compute the mean number of steps taken for each interval, averaged across all days for which data is available.
+
+```{r, echo=TRUE}
+averageSteps <- aggregate(steps ~ interval, activity, FUN = mean)
+```
+
+With the necessary data calculated, we use R's base plotting system to create a line chart representing the average activity pattern.
+
+```{r, echo=TRUE}
+plot(averageSteps$steps ~ averageSteps$interval, type = "l", main = "Activity Pattern", col = "black", xlab = "Interval", ylab = "Average Step Count")
+```
+
+## Inputting missing values
+
+Calculating how many NA values there are
+
+```{r, echo=TRUE}
+naCount <- sum(is.na(activity$steps))
+```
+
+There are `r naCount` missing values in the dataset.
+
+In order to calculate the missing values, the zoo package is used. The zoo package contained an na.aggregate function which calculates values for NA values in a dataset, using the specified function and grouping variable. In this case, the missing values are calculated using the mean of the values grouped by their interval.
+
+```{r, echo=TRUE}
+library(zoo)
+activityNARemoved <- read.csv("activity.csv")
+activityNARemoved$steps <- na.aggregate(activityNARemoved$steps, by = activityNARemoved$interval, FUN = mean)
+
+```
+
+With the NA values replaced by calculated values, we can recreate the histogram to compare it to the initial histogram.
+
+```{r histogramnaremoved, echo=TRUE}
+totalStepsPerDayNARemoved <- aggregate(steps ~ date, activityNARemoved, FUN = sum)
+hist(totalStepsPerDayNARemoved$steps, main = "Histogram of Step Distribution (NAs removed)", xlab = "Step Count", col = "blue")
+```
+
+Again, we calculate the mean and median number of steps taken per day using the total steps per day calculated above as well as R's built in mean and median functions. Note that this time we use the data set with the NA values removed.
+
+
+```{r meannaremoved, echo=TRUE}
+meanSteps <- mean(totalStepsPerDayNARemoved$steps)
+medianSteps <- median(totalStepsPerDayNARemoved$steps)
+```
+
+Thus, the mean steps per day is `r meanSteps` and the median steps per day is `r medianSteps`.
+
+## Difference in Activity Patterns between Weekdays and Weekends
+
+In order to determine whether there is a difference in activity levels between weekdays and weekends, we use the dplyr library to create a DateTime column. This DateTime column can then be passed to the weekdays function, which we use to create a factor variable representing whether the measurement occurred on a weekday or weekend.
+
+```{r, echo=TRUE}
+library(dplyr)
+activity <- mutate(activity, DateTime = as.POSIXct(date, format = "%Y-%m-%d"))
+weekdayslist <- c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+activity$isweekday <- factor((weekdays(activity$DateTime) %in% weekdayslist), levels=c(FALSE, TRUE), labels=c('weekend', 'weekday'))
+```
+
+Using the factor variable created above, we can now create two line charts of the activity pattern for weekdays and weekends and see that there is a clear difference.
+
+```{r, echo=TRUE}
+par(mfrow=c(2,1))
+averageWeekdaySteps <- aggregate(steps ~ interval, activity[activity$isweekday == "weekday",], FUN = mean)
+averageWeekendSteps <- aggregate(steps ~ interval, activity[activity$isweekday == "weekend",], FUN = mean)
+
+plot(averageWeekdaySteps$steps ~ averageWeekdaySteps$interval, type = "l", main = "Weekday Activity Pattern", col = "red", xlab = "Interval", ylab = "Average Step Count")
+plot(averageWeekendSteps$steps ~ averageWeekendSteps$interval, type = "l", main = "Weekend Activity Pattern", col = "red", xlab = "Interval", ylab = "Average Step Count")
+
+```
